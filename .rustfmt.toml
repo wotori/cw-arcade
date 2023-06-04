@@ -1,0 +1,5 @@
+# .rustfmt.toml
+max_width = 80
+
+[fn_entry]
+same_line = true
