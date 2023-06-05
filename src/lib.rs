@@ -1,9 +1,10 @@
-pub mod msg;
-
 use cosmwasm_std::{
-    entry_point, DepsMut, Env, MessageInfo, Response, StdResult,
+    entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
 };
 use msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+
+mod contract;
+mod msg;
 
 #[entry_point]
 pub fn instantiate(
@@ -12,7 +13,7 @@ pub fn instantiate(
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> StdResult<Response> {
-    Ok(Response::default())
+    contract::instantiate(deps, env, info, msg)
 }
 
 #[entry_point]
@@ -22,14 +23,10 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> StdResult<Response> {
-    Ok(Response::default())
+    contract::execute(deps, env, info, msg)
 }
 
 #[entry_point]
-pub fn query(
-    deps: DepsMut,
-    env: Env,
-    msg: InstantiateMsg,
-) -> StdResult<Response> {
-    Ok(Response::default())
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    contract::query(deps, env, msg)
 }
