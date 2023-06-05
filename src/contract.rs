@@ -45,16 +45,30 @@ mod query {
 
 #[cfg(test)]
 mod tests {
+    use cosmwasm_std::{
+        from_binary,
+        testing::{mock_dependencies, mock_env},
+    };
+
+    use crate::msg::GreetResp;
+
     use super::*;
 
     #[test]
     fn greet_query() {
-        let resp = query::greet().unwrap();
+        let resp = query(
+            mock_dependencies().as_ref(),
+            mock_env(),
+            msg::QueryMsg::Greet {},
+        )
+        .unwrap();
+        let resp: GreetResp = from_binary(&resp).unwrap();
+
         assert_eq!(
             resp,
-            msg::GreetResp {
+            GreetResp {
                 message: "Hello, world!".to_owned()
             }
-        );
+        )
     }
 }
