@@ -5,6 +5,7 @@ use msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 mod contract;
 mod msg;
+mod state;
 
 #[entry_point]
 pub fn instantiate(

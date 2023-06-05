@@ -1,15 +1,25 @@
+use crate::{
+    msg,
+    state::{ADMINS, ARCADE},
+};
 use cosmwasm_std::{
     to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
 };
 
-use crate::msg;
-
 pub fn instantiate(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
-    _msg: msg::InstantiateMsg,
+    msg: msg::InstantiateMsg,
 ) -> StdResult<Response> {
+    let admins: StdResult<Vec<_>> = msg
+        .admins
+        .into_iter()
+        .map(|addr| deps.api.addr_validate(&addr))
+        .collect();
+    ADMINS.save(deps.storage, &admins?)?;
+    ARCADE.save(deps.storage, &msg.arcade)?;
+
     Ok(Response::new())
 }
 
@@ -22,16 +32,17 @@ pub fn execute(
     Ok(Response::new())
 }
 
-pub fn query(_deps: Deps, _env: Env, msg: msg::QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, _env: Env, msg: msg::QueryMsg) -> StdResult<Binary> {
     use msg::QueryMsg::*;
 
     match msg {
         Greet {} => to_binary(&query::greet()?),
+        AdminsList {} => to_binary(&query::admins_list(deps)?),
     }
 }
 
 mod query {
-    use crate::msg::GreetResp;
+    use crate::msg::{AdminsListResp, GreetResp};
 
     use super::*;
 
@@ -39,6 +50,12 @@ mod query {
         let resp = GreetResp {
             message: "Hello, world!".to_owned(),
         };
+        Ok(resp)
+    }
+
+    pub fn admins_list(deps: Deps) -> StdResult<AdminsListResp> {
+        let admins = ADMINS.load(deps.storage)?;
+        let resp = AdminsListResp { admins };
         Ok(resp)
     }
 }
@@ -70,7 +87,7 @@ mod tests {
         let env = mock_env();
         let inst_msg = InstantiateMsg {
             arcade: "Pac-Man".to_string(),
-            admin: "Wotori".to_string(),
+            admins: vec!["wotori".to_string(), "senlin".to_string()],
         };
 
         instantiate(
@@ -103,7 +120,7 @@ mod tests {
 
         let instantiate_msg = InstantiateMsg {
             arcade: "pacman".to_string(),
-            admin: "owner".to_string(),
+            admins: vec!["wotori".to_string(), "senlin".to_string()],
         };
         let addr = app
             .instantiate_contract(
