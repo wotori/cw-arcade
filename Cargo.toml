@@ -9,3 +9,6 @@ edition = "2021"
 cosmwasm-std = "1.2.5"
 schemars = "0.8.12"
 serde = "1.0.163"
+
+[dev-dependencies]
+cw-multi-test = "0.16.4"
