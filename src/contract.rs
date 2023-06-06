@@ -54,22 +54,28 @@ mod exec {
         info: MessageInfo,
         user: User,
     ) -> Result<Response, ContractError> {
-        // todo: add check if contract caller is an admin wit info
         println!("sender: {}", info.sender);
-        let max = MAX_TOP_SCORES.load(deps.storage)?;
-        let cur_top_users = TOP_USERS.load(deps.storage)?;
-        let mut heap = BinaryHeap::from(cur_top_users);
-        if heap.len() < max.into() {
-            heap.push(user);
-        } else if let Some(lowest_score_user) = heap.peek() {
-            if lowest_score_user.score < user.score {
-                heap.pop();
+        let admins = ADMINS.load(deps.storage)?;
+        if admins.contains(&info.sender) {
+            let max = MAX_TOP_SCORES.load(deps.storage)?;
+            let cur_top_users = TOP_USERS.load(deps.storage)?;
+            let mut heap = BinaryHeap::from(cur_top_users);
+            if heap.len() < max.into() {
                 heap.push(user);
+            } else if let Some(lowest_score_user) = heap.peek() {
+                if lowest_score_user.score < user.score {
+                    heap.pop();
+                    heap.push(user);
+                }
             }
+            let vec = heap.into_vec();
+            TOP_USERS.save(deps.storage, &vec)?;
+            Ok(Response::new())
+        } else {
+            Err(ContractError::Unauthorized {
+                sender: (info.sender),
+            })
         }
-        let vec = heap.into_vec();
-        TOP_USERS.save(deps.storage, &vec)?;
-        Ok(Response::new())
     }
 
     pub fn add_members(
