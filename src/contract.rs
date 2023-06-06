@@ -252,7 +252,7 @@ mod tests {
                     user: User {
                         name: "ASHTON".to_string(),
                         address: Addr::unchecked("archway#######"),
-                        score: std::cmp::Reverse(100),
+                        score: std::cmp::Reverse(300),
                     },
                 },
                 &[],
@@ -267,7 +267,7 @@ mod tests {
                     user: User {
                         name: "WOTORI".to_string(),
                         address: Addr::unchecked("archway#######"),
-                        score: std::cmp::Reverse(333),
+                        score: std::cmp::Reverse(299),
                     },
                 },
                 &[],
@@ -283,8 +283,8 @@ mod tests {
             resp,
             ScoreboardListResp {
                 scores: vec![User {
-                    name: "WOTORI".to_string(),
-                    score: std::cmp::Reverse(333),
+                    name: "ASHTON".to_string(),
+                    score: std::cmp::Reverse(300),
                     address: Addr::unchecked("archway#######")
                 }]
             }
