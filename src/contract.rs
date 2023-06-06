@@ -63,7 +63,8 @@ mod exec {
             if heap.len() < max.into() {
                 heap.push(user);
             } else if let Some(lowest_score_user) = heap.peek() {
-                if lowest_score_user.score < user.score {
+                if lowest_score_user.score > user.score {
+                    // > because the lower the value, the greater it is
                     heap.pop();
                     heap.push(user);
                 }
@@ -227,7 +228,7 @@ mod tests {
 
         let code = ContractWrapper::new(execute, instantiate, query);
         let code_id = app.store_code(Box::new(code));
-
+        let max = 1;
         let addr = app
             .instantiate_contract(
                 code_id,
@@ -235,11 +236,26 @@ mod tests {
                 &InstantiateMsg {
                     admins: vec!["wotori".to_string()],
                     arcade: "Pac-Man".to_string(),
-                    max_top_score: 1,
+                    max_top_score: max,
                 },
                 &[],
                 "cw-arcade",
                 None,
+            )
+            .unwrap();
+
+        let _resp = app
+            .execute_contract(
+                Addr::unchecked("wotori"),
+                addr.clone(),
+                &ExecuteMsg::AddTopUser {
+                    user: User {
+                        name: "ASHTON".to_string(),
+                        address: Addr::unchecked("archway#######"),
+                        score: std::cmp::Reverse(100),
+                    },
+                },
+                &[],
             )
             .unwrap();
 
@@ -272,7 +288,9 @@ mod tests {
                     address: Addr::unchecked("archway#######")
                 }]
             }
-        )
+        );
+
+        assert_eq!(resp.scores.len(), usize::from(max))
     }
 
     #[test]
