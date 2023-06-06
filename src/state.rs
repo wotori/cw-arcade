@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 pub const ADMINS: Item<Vec<Addr>> = Item::new("admins");
 pub const ARCADE: Item<String> = Item::new("arcade");
+pub const MAX_TOP_SCORES: Item<u8> = Item::new("max_top_scores");
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone, JsonSchema)]
 pub struct User {

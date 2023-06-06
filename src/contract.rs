@@ -1,7 +1,7 @@
 use crate::{
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
-    state::{ADMINS, ARCADE},
+    state::{ADMINS, ARCADE, MAX_TOP_SCORES},
 };
 use cosmwasm_std::{
     to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
@@ -20,6 +20,7 @@ pub fn instantiate(
         .collect();
     ADMINS.save(deps.storage, &admins?)?;
     ARCADE.save(deps.storage, &msg.arcade)?;
+    MAX_TOP_SCORES.save(deps.storage, &msg.max_top_score)?;
 
     Ok(Response::new())
 }
@@ -55,10 +56,10 @@ mod exec {
     ) -> Result<Response, ContractError> {
         // todo: add check if contract caller is an admin wit info
         println!("sender: {}", info.sender);
+        let max = MAX_TOP_SCORES.load(deps.storage)?;
         let cur_top_users = TOP_USERS.load(deps.storage)?;
         let mut heap = BinaryHeap::from(cur_top_users);
-        if heap.len() < 100 {
-            // TODO: add to contract instantiation state
+        if heap.len() < max.into() {
             heap.push(user);
         } else if let Some(lowest_score_user) = heap.peek() {
             if lowest_score_user.score < user.score {
@@ -156,6 +157,7 @@ mod tests {
                 &InstantiateMsg {
                     arcade: "pacman".to_string(),
                     admins: vec![],
+                    max_top_score: 10,
                 },
                 &[],
                 "Contract",
@@ -176,6 +178,7 @@ mod tests {
                 &InstantiateMsg {
                     arcade: "Pac-Man".to_string(),
                     admins: vec!["admin1".to_owned(), "admin2".to_owned()],
+                    max_top_score: 10,
                 },
                 &[],
                 "Contract 2",
@@ -213,6 +216,7 @@ mod tests {
                 &InstantiateMsg {
                     admins: vec![],
                     arcade: "Pac-Man".to_string(),
+                    max_top_score: 10,
                 },
                 &[],
                 "Contract",

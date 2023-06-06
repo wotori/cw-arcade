@@ -8,6 +8,7 @@ use crate::state::User;
 pub struct InstantiateMsg {
     pub arcade: String,
     pub admins: Vec<String>,
+    pub max_top_score: u8,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
