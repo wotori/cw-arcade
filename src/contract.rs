@@ -33,15 +33,44 @@ pub fn execute(
     use ExecuteMsg::*;
 
     match msg {
-        AddMembers { admins } => exec::add_members(deps, info, admins),
+        AddAdmin { admins } => exec::add_members(deps, info, admins),
+        AddTopUser { user } => exec::add_user(deps, info, user),
         Leave {} => exec::leave(deps, info),
     }
 }
 
 mod exec {
-    use crate::error::ContractError;
+    use std::collections::BinaryHeap;
 
     use super::*;
+    use crate::{
+        error::ContractError,
+        state::{User, TOP_USERS},
+    };
+
+    pub fn add_user(
+        deps: DepsMut,
+        info: MessageInfo,
+        user: User,
+    ) -> Result<Response, ContractError> {
+        // todo: add check if contract caller is an admin wit info
+        println!("sender: {}", info.sender);
+        let cur_top_users = TOP_USERS.load(deps.storage)?;
+        let mut heap = BinaryHeap::from(cur_top_users);
+        if heap.len() < 100 {
+            // TODO: add to contract instantiation state
+            heap.push(user);
+        } else if let Some(lowest_score_user) = heap.peek() {
+            if lowest_score_user.score < user.score {
+                heap.pop();
+                heap.push(user);
+            }
+        }
+        let vec = heap.into_vec();
+        TOP_USERS.save(deps.storage, &vec)?;
+        Ok(Response::new())
+    }
+
     pub fn add_members(
         deps: DepsMut,
         info: MessageInfo,
@@ -195,7 +224,7 @@ mod tests {
             .execute_contract(
                 Addr::unchecked("user"),
                 addr,
-                &ExecuteMsg::AddMembers {
+                &ExecuteMsg::AddAdmin {
                     admins: vec!["user".to_owned()],
                 },
                 &[],

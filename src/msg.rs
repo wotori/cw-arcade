@@ -2,6 +2,8 @@ use cosmwasm_std::Addr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::state::User;
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     pub arcade: String,
@@ -10,7 +12,8 @@ pub struct InstantiateMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub enum ExecuteMsg {
-    AddMembers { admins: Vec<String> },
+    AddAdmin { admins: Vec<String> },
+    AddTopUser { user: User },
     Leave {},
 }
 
