@@ -1,5 +1,6 @@
 use crate::{
-    msg,
+    error::ContractError,
+    msg::{ExecuteMsg, GreetResp, InstantiateMsg, QueryMsg},
     state::{ADMINS, ARCADE},
 };
 use cosmwasm_std::{
@@ -10,7 +11,7 @@ pub fn instantiate(
     deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
-    msg: msg::InstantiateMsg,
+    msg: InstantiateMsg,
 ) -> StdResult<Response> {
     let admins: StdResult<Vec<_>> = msg
         .admins
@@ -24,16 +25,61 @@ pub fn instantiate(
 }
 
 pub fn execute(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
-    _info: MessageInfo,
-    _msg: msg::ExecuteMsg,
-) -> StdResult<Response> {
-    Ok(Response::new())
+    info: MessageInfo,
+    msg: ExecuteMsg,
+) -> Result<Response, ContractError> {
+    use ExecuteMsg::*;
+
+    match msg {
+        AddMembers { admins } => exec::add_members(deps, info, admins),
+        Leave {} => exec::leave(deps, info),
+    }
 }
 
-pub fn query(deps: Deps, _env: Env, msg: msg::QueryMsg) -> StdResult<Binary> {
-    use msg::QueryMsg::*;
+mod exec {
+    use crate::error::ContractError;
+
+    use super::*;
+    pub fn add_members(
+        deps: DepsMut,
+        info: MessageInfo,
+        admins: Vec<String>,
+    ) -> Result<Response, ContractError> {
+        let mut curr_admins = ADMINS.load(deps.storage)?;
+        if !curr_admins.contains(&info.sender) {
+            return Err(ContractError::Unauthorized {
+                sender: info.sender,
+            });
+        }
+        let admins: StdResult<Vec<_>> = admins
+            .into_iter()
+            .map(|addr| deps.api.addr_validate(&addr))
+            .collect();
+        curr_admins.append(&mut admins?);
+        ADMINS.save(deps.storage, &curr_admins)?;
+        Ok(Response::new())
+    }
+
+    pub fn leave(
+        deps: DepsMut,
+        info: MessageInfo,
+    ) -> Result<Response, ContractError> {
+        ADMINS.update(deps.storage, move |admins| -> StdResult<_> {
+            let admins = admins
+                .into_iter()
+                .filter(|admin| *admin != info.sender)
+                .collect();
+            Ok(admins)
+        })?;
+
+        Ok(Response::new())
+    }
+}
+
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    use QueryMsg::*;
 
     match msg {
         Greet {} => to_binary(&query::greet()?),
@@ -74,7 +120,7 @@ mod tests {
         let resp = query::greet().unwrap();
         assert_eq!(
             resp,
-            msg::GreetResp {
+            GreetResp {
                 message: "Hello, world!".to_owned()
             }
         );
@@ -98,7 +144,7 @@ mod tests {
         )
         .unwrap();
 
-        let resp = query(deps.as_ref(), env, msg::QueryMsg::Greet {}).unwrap();
+        let resp = query(deps.as_ref(), env, QueryMsg::Greet {}).unwrap();
         let resp: GreetResp = from_binary(&resp).unwrap();
 
         assert_eq!(
@@ -200,6 +246,46 @@ mod tests {
                     Addr::unchecked("admin2")
                 ],
             }
+        );
+    }
+
+    #[test]
+    fn unauthorized() {
+        let mut app = App::default();
+
+        let code = ContractWrapper::new(execute, instantiate, query);
+        let code_id = app.store_code(Box::new(code));
+
+        let addr = app
+            .instantiate_contract(
+                code_id,
+                Addr::unchecked("owner"),
+                &InstantiateMsg {
+                    admins: vec![],
+                    arcade: "Pac-Man".to_string(),
+                },
+                &[],
+                "Contract",
+                None,
+            )
+            .unwrap();
+
+        let err = app
+            .execute_contract(
+                Addr::unchecked("user"),
+                addr,
+                &ExecuteMsg::AddMembers {
+                    admins: vec!["user".to_owned()],
+                },
+                &[],
+            )
+            .unwrap_err();
+
+        assert_eq!(
+            ContractError::Unauthorized {
+                sender: Addr::unchecked("user")
+            },
+            err.downcast().unwrap()
         );
     }
 }
