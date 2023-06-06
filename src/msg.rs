@@ -22,6 +22,7 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     Greet {},
     AdminsList {},
+    ScoreList {},
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -37,4 +38,9 @@ pub enum QueryResp {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct AdminsListResp {
     pub admins: Vec<Addr>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct ScoreboardListResp {
+    pub scores: Vec<User>,
 }

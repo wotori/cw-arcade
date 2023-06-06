@@ -11,9 +11,9 @@ pub const MAX_TOP_SCORES: Item<u8> = Item::new("max_top_scores");
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone, JsonSchema)]
 pub struct User {
-   pub name: String,
-    pub address: String,
-    pub score: Reverse<i32>, // Reverse is used for creating a min-heap instead of a max-heap
+    pub name: String,
+    pub address: Addr,
+    pub score: Reverse<u16>, // Reverse is used for creating a min-heap instead of a max-heap
 }
 
 impl Ord for User {

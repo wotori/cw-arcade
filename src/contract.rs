@@ -1,7 +1,7 @@
 use crate::{
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
-    state::{ADMINS, ARCADE, MAX_TOP_SCORES},
+    state::{User, ADMINS, ARCADE, MAX_TOP_SCORES, TOP_USERS},
 };
 use cosmwasm_std::{
     to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
@@ -21,7 +21,7 @@ pub fn instantiate(
     ADMINS.save(deps.storage, &admins?)?;
     ARCADE.save(deps.storage, &msg.arcade)?;
     MAX_TOP_SCORES.save(deps.storage, &msg.max_top_score)?;
-
+    TOP_USERS.save(deps.storage, &Vec::<User>::new())?;
     Ok(Response::new())
 }
 
@@ -120,11 +120,15 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         Greet {} => to_binary(&query::greet()?),
         AdminsList {} => to_binary(&query::admins_list(deps)?),
+        ScoreList {} => to_binary(&query::scoreboard(deps)?),
     }
 }
 
 mod query {
-    use crate::msg::{AdminsListResp, GreetResp};
+    use crate::{
+        msg::{AdminsListResp, GreetResp, ScoreboardListResp},
+        state::TOP_USERS,
+    };
 
     use super::*;
 
@@ -132,6 +136,12 @@ mod query {
         let resp = GreetResp {
             message: "Hello, world!".to_owned(),
         };
+        Ok(resp)
+    }
+
+    pub fn scoreboard(deps: Deps) -> StdResult<ScoreboardListResp> {
+        let scoreboard = TOP_USERS.load(deps.storage)?;
+        let resp = ScoreboardListResp { scores: scoreboard };
         Ok(resp)
     }
 
@@ -145,7 +155,10 @@ mod query {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::msg::{AdminsListResp, InstantiateMsg, QueryMsg};
+    use crate::{
+        msg::{AdminsListResp, InstantiateMsg, QueryMsg, ScoreboardListResp},
+        state::User,
+    };
     use cosmwasm_std::Addr;
     use cw_multi_test::{App, ContractWrapper, Executor};
 
@@ -194,7 +207,7 @@ mod tests {
 
         let resp: AdminsListResp = app
             .wrap()
-            .query_wasm_smart(addr, &QueryMsg::AdminsList {})
+            .query_wasm_smart(&addr, &QueryMsg::AdminsList {})
             .unwrap();
 
         assert_eq!(
@@ -206,6 +219,60 @@ mod tests {
                 ],
             }
         );
+    }
+
+    #[test]
+    fn write_score() {
+        let mut app = App::default();
+
+        let code = ContractWrapper::new(execute, instantiate, query);
+        let code_id = app.store_code(Box::new(code));
+
+        let addr = app
+            .instantiate_contract(
+                code_id,
+                Addr::unchecked("wotori"),
+                &InstantiateMsg {
+                    admins: vec!["wotori".to_string()],
+                    arcade: "Pac-Man".to_string(),
+                    max_top_score: 1,
+                },
+                &[],
+                "cw-arcade",
+                None,
+            )
+            .unwrap();
+
+        let _resp = app
+            .execute_contract(
+                Addr::unchecked("wotori"),
+                addr.clone(),
+                &ExecuteMsg::AddTopUser {
+                    user: User {
+                        name: "WOTORI".to_string(),
+                        address: Addr::unchecked("archway#######"),
+                        score: std::cmp::Reverse(333),
+                    },
+                },
+                &[],
+            )
+            .unwrap();
+
+        let resp: ScoreboardListResp = app
+            .wrap()
+            .query_wasm_smart(&addr, &QueryMsg::ScoreList {})
+            .unwrap();
+
+        assert_eq!(
+            resp,
+            ScoreboardListResp {
+                scores: vec![User {
+                    name: "WOTORI".to_string(),
+                    score: std::cmp::Reverse(333),
+                    address: Addr::unchecked("archway#######")
+                }]
+            }
+        )
     }
 
     #[test]
