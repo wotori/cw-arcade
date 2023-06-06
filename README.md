@@ -4,3 +4,6 @@ A Cosmos-based smart contract for building a decentralized arcade where users ca
 # commands
 building wasm
 `cargo build --target wasm32-unknown-unknown --release`
+
+generate schema
+`cargo schema`

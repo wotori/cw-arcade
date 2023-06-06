@@ -1,4 +1,4 @@
-use arcade::msg::{
+use cw_arcade::msg::{
     AdminsListResp, ExecuteMsg, InstantiateMsg, QueryMsg, ScoreboardListResp,
 };
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
