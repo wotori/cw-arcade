@@ -6,7 +6,7 @@ use msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 mod contract;
 mod error;
-mod msg;
+pub mod msg;
 mod state;
 
 #[entry_point]

@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QueryMsg",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "Greet"
+      ],
+      "properties": {
+        "Greet": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "AdminsList"
+      ],
+      "properties": {
+        "AdminsList": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "ScoreList"
+      ],
+      "properties": {
+        "ScoreList": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}
