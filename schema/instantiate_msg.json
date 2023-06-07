@@ -5,6 +5,7 @@
   "required": [
     "admins",
     "arcade",
+    "denom",
     "max_top_score"
   ],
   "properties": {
@@ -15,6 +16,9 @@
       }
     },
     "arcade": {
+      "type": "string"
+    },
+    "denom": {
       "type": "string"
     },
     "max_top_score": {

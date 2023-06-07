@@ -9,6 +9,7 @@ pub struct InstantiateMsg {
     pub arcade: String,
     pub admins: Vec<String>,
     pub max_top_score: u8,
+    pub denom: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

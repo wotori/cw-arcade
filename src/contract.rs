@@ -1,7 +1,10 @@
 use crate::{
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
-    state::{User, ADMINS, ARCADE, GAME_COUNTER, MAX_TOP_SCORES, TOP_USERS},
+    state::{
+        User, ADMINS, ARCADE, ARCADE_DENOM, GAME_COUNTER, MAX_TOP_SCORES,
+        TOP_USERS,
+    },
 };
 use cosmwasm_std::{
     to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
@@ -23,6 +26,7 @@ pub fn instantiate(
     MAX_TOP_SCORES.save(deps.storage, &msg.max_top_score)?;
     TOP_USERS.save(deps.storage, &Vec::<User>::new())?;
     GAME_COUNTER.save(deps.storage, &0)?;
+    ARCADE_DENOM.save(deps.storage, &msg.denom)?;
     Ok(Response::new())
 }
 
@@ -38,12 +42,14 @@ pub fn execute(
         AddAdmin { admins } => exec::add_members(deps, info, admins),
         AddTopUser { user } => exec::add_user(deps, info, user),
         Leave {} => exec::leave(deps, info),
-        Play {} => exec::play(deps),
+        Play {} => exec::play(deps, info),
     }
 }
 
 mod exec {
     use std::collections::BinaryHeap;
+
+    use cosmwasm_std::{coins, BankMsg};
 
     use super::*;
     use crate::{
@@ -116,12 +122,29 @@ mod exec {
         Ok(Response::new())
     }
 
-    pub fn play(deps: DepsMut) -> Result<Response, ContractError> {
+    pub fn play(
+        deps: DepsMut,
+        info: MessageInfo,
+    ) -> Result<Response, ContractError> {
+        // increment game counter
         let mut counter = GAME_COUNTER.load(deps.storage)?;
         counter += 1;
         GAME_COUNTER.save(deps.storage, &counter)?;
-        // TODO: add logic to handle tokens here as a quarter for play a game (0.25?)
-        Ok(Response::new())
+
+        //transfer token to admins
+        let denom = ARCADE_DENOM.load(deps.storage)?;
+        let admins = ADMINS.load(deps.storage)?;
+        let tokens = cw_utils::must_pay(&info, &denom)?.u128();
+        // TODO: check if tokens equal minimum amount (the price should cover next admin transaction)
+        let tokens_peer_admin = tokens / (admins.len() as u128);
+        let messages = admins.into_iter().map(|admin| BankMsg::Send {
+            to_address: admin.to_string(),
+            amount: coins(tokens_peer_admin, &denom),
+        });
+
+        Ok(Response::new()
+            .add_messages(messages)
+            .add_attribute("recieved_tokens", tokens.to_string()))
     }
 }
 
@@ -182,12 +205,21 @@ mod tests {
         },
         state::User,
     };
-    use cosmwasm_std::Addr;
+    use cosmwasm_std::{coins, Addr};
     use cw_multi_test::{App, ContractWrapper, Executor};
 
     #[test]
     fn play() {
-        let mut app = App::default();
+        let mut app = App::new(|router, _, storage| {
+            router
+                .bank
+                .init_balance(
+                    storage,
+                    &Addr::unchecked("user"),
+                    coins(5, "aconst"),
+                )
+                .unwrap()
+        });
         let code = ContractWrapper::new(execute, instantiate, query);
         let code_id = app.store_code(Box::new(code));
         let addr = app
@@ -196,8 +228,9 @@ mod tests {
                 Addr::unchecked("wotori"),
                 &InstantiateMsg {
                     arcade: "pacman".to_string(),
-                    admins: vec![],
+                    admins: vec!["admin1".to_owned()],
                     max_top_score: 10,
+                    denom: "aconst".to_string(),
                 },
                 &[],
                 "Pac-Man".to_string(),
@@ -213,10 +246,10 @@ mod tests {
 
         let _resp = app
             .execute_contract(
-                Addr::unchecked("wotori"),
+                Addr::unchecked("user"),
                 addr.clone(),
                 &ExecuteMsg::Play {},
-                &[],
+                &coins(5, "aconst"),
             )
             .unwrap();
 
@@ -242,6 +275,7 @@ mod tests {
                     arcade: "pacman".to_string(),
                     admins: vec![],
                     max_top_score: 10,
+                    denom: "aconst".to_string(),
                 },
                 &[],
                 "Contract",
@@ -263,6 +297,7 @@ mod tests {
                     arcade: "Pac-Man".to_string(),
                     admins: vec!["admin1".to_owned(), "admin2".to_owned()],
                     max_top_score: 10,
+                    denom: "aconst".to_string(),
                 },
                 &[],
                 "Contract 2",
@@ -301,6 +336,7 @@ mod tests {
                     admins: vec!["wotori".to_string()],
                     arcade: "Pac-Man".to_string(),
                     max_top_score: max,
+                    denom: "aconst".to_string(),
                 },
                 &[],
                 "cw-arcade",
@@ -372,6 +408,7 @@ mod tests {
                     admins: vec![],
                     arcade: "Pac-Man".to_string(),
                     max_top_score: 10,
+                    denom: "aconst".to_string(),
                 },
                 &[],
                 "Contract",
@@ -395,6 +432,82 @@ mod tests {
                 sender: Addr::unchecked("user")
             },
             err.downcast().unwrap()
+        );
+    }
+    #[test]
+    fn play_with_pay() {
+        let mut app = App::new(|router, _, storage| {
+            router
+                .bank
+                .init_balance(
+                    storage,
+                    &Addr::unchecked("user"),
+                    coins(5, "aconst"),
+                )
+                .unwrap()
+        });
+
+        let code = ContractWrapper::new(execute, instantiate, query);
+        let code_id = app.store_code(Box::new(code));
+
+        let addr = app
+            .instantiate_contract(
+                code_id,
+                Addr::unchecked("owner"),
+                &InstantiateMsg {
+                    arcade: "pacman".to_string(),
+                    admins: vec!["admin1".to_owned(), "admin2".to_owned()],
+                    max_top_score: 10,
+                    denom: "aconst".to_string(),
+                },
+                &[],
+                "Pac-Man Arcade",
+                None,
+            )
+            .unwrap();
+
+        app.execute_contract(
+            Addr::unchecked("user"),
+            addr.clone(),
+            &ExecuteMsg::Play {},
+            &coins(5, "aconst"),
+        )
+        .unwrap();
+
+        assert_eq!(
+            app.wrap()
+                .query_balance("user", "aconst")
+                .unwrap()
+                .amount
+                .u128(),
+            0
+        );
+
+        assert_eq!(
+            app.wrap()
+                .query_balance(&addr, "aconst")
+                .unwrap()
+                .amount
+                .u128(),
+            1
+        );
+
+        assert_eq!(
+            app.wrap()
+                .query_balance("admin1", "aconst")
+                .unwrap()
+                .amount
+                .u128(),
+            2
+        );
+
+        assert_eq!(
+            app.wrap()
+                .query_balance("admin2", "aconst")
+                .unwrap()
+                .amount
+                .u128(),
+            2
         );
     }
 }
