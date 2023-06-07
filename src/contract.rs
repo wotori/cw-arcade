@@ -3,7 +3,7 @@ use crate::{
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     state::{
         User, ADMINS, ARCADE, ARCADE_DENOM, GAME_COUNTER, MAX_TOP_SCORES,
-        TOP_USERS,
+        PRICE_PEER_GAME, TOP_USERS,
     },
 };
 use cosmwasm_std::{
@@ -27,12 +27,13 @@ pub fn instantiate(
     TOP_USERS.save(deps.storage, &Vec::<User>::new())?;
     GAME_COUNTER.save(deps.storage, &0)?;
     ARCADE_DENOM.save(deps.storage, &msg.denom)?;
+    PRICE_PEER_GAME.save(deps.storage, &msg.price_peer_game)?;
     Ok(Response::new())
 }
 
 pub fn execute(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
@@ -42,7 +43,8 @@ pub fn execute(
         AddAdmin { admins } => exec::add_members(deps, info, admins),
         AddTopUser { user } => exec::add_user(deps, info, user),
         Leave {} => exec::leave(deps, info),
-        Play {} => exec::play(deps, info),
+        Play {} => exec::play(deps, info, env),
+        UpdatePrice { price } => exec::update_price(deps, price),
     }
 }
 
@@ -125,26 +127,59 @@ mod exec {
     pub fn play(
         deps: DepsMut,
         info: MessageInfo,
+        env: Env,
     ) -> Result<Response, ContractError> {
         // increment game counter
+        let price_peer_game = PRICE_PEER_GAME.load(deps.storage)?;
         let mut counter = GAME_COUNTER.load(deps.storage)?;
         counter += 1;
         GAME_COUNTER.save(deps.storage, &counter)?;
 
         //transfer token to admins
         let denom = ARCADE_DENOM.load(deps.storage)?;
-        let admins = ADMINS.load(deps.storage)?;
+        let mut admins = ADMINS.load(deps.storage)?;
+        let self_address = env.contract.address;
+        admins.push(self_address.clone());
         let tokens = cw_utils::must_pay(&info, &denom)?.u128();
         // TODO: check if tokens equal minimum amount (the price should cover next admin transaction)
-        let tokens_peer_admin = tokens / (admins.len() as u128);
-        let messages = admins.into_iter().map(|admin| BankMsg::Send {
-            to_address: admin.to_string(),
-            amount: coins(tokens_peer_admin, &denom),
-        });
+        if tokens >= price_peer_game {
+            let tokens_peer_admin = tokens / (admins.len() as u128);
+            let left_tokens = tokens % (admins.len() as u128);
+            let messages = admins.into_iter().map(|admin| BankMsg::Send {
+                to_address: admin.to_string(),
+                amount: coins(tokens_peer_admin, &denom),
+            });
+            if left_tokens > 0 {
+                // send tokens to arcade contract
+                BankMsg::Send {
+                    to_address: self_address.to_string(),
+                    amount: coins(tokens_peer_admin, &denom),
+                };
+            }
+            // println!("{}", self_address);
+            Ok(Response::new()
+                .add_messages(messages)
+                .add_attribute("recieved_tokens", tokens.to_string()))
+        } else {
+            // return coins to sender
+            // TODO: 1 - gran this amount of tokens to the winner
+            // TODO: 2 - allow query available tokens to win
+            BankMsg::Send {
+                to_address: info.sender.to_string(),
+                amount: coins(tokens, &denom),
+            };
+            Err(ContractError::Unauthorized {
+                sender: info.sender,
+            })
+        }
+    }
 
-        Ok(Response::new()
-            .add_messages(messages)
-            .add_attribute("recieved_tokens", tokens.to_string()))
+    pub fn update_price(
+        deps: DepsMut,
+        price: u128,
+    ) -> Result<Response, ContractError> {
+        PRICE_PEER_GAME.save(deps.storage, &price)?;
+        Ok(Response::new())
     }
 }
 
@@ -230,6 +265,7 @@ mod tests {
                     arcade: "pacman".to_string(),
                     admins: vec!["admin1".to_owned()],
                     max_top_score: 10,
+                    price_peer_game: 1,
                     denom: "aconst".to_string(),
                 },
                 &[],
@@ -275,6 +311,7 @@ mod tests {
                     arcade: "pacman".to_string(),
                     admins: vec![],
                     max_top_score: 10,
+                    price_peer_game: 1,
                     denom: "aconst".to_string(),
                 },
                 &[],
@@ -297,6 +334,7 @@ mod tests {
                     arcade: "Pac-Man".to_string(),
                     admins: vec!["admin1".to_owned(), "admin2".to_owned()],
                     max_top_score: 10,
+                    price_peer_game: 1,
                     denom: "aconst".to_string(),
                 },
                 &[],
@@ -336,6 +374,7 @@ mod tests {
                     admins: vec!["wotori".to_string()],
                     arcade: "Pac-Man".to_string(),
                     max_top_score: max,
+                    price_peer_game: 1,
                     denom: "aconst".to_string(),
                 },
                 &[],
@@ -408,6 +447,7 @@ mod tests {
                     admins: vec![],
                     arcade: "Pac-Man".to_string(),
                     max_top_score: 10,
+                    price_peer_game: 1,
                     denom: "aconst".to_string(),
                 },
                 &[],
@@ -442,7 +482,7 @@ mod tests {
                 .init_balance(
                     storage,
                     &Addr::unchecked("user"),
-                    coins(5, "aconst"),
+                    coins(100000, "aconst"),
                 )
                 .unwrap()
         });
@@ -458,6 +498,7 @@ mod tests {
                     arcade: "pacman".to_string(),
                     admins: vec!["admin1".to_owned(), "admin2".to_owned()],
                     max_top_score: 10,
+                    price_peer_game: 1,
                     denom: "aconst".to_string(),
                 },
                 &[],
@@ -470,7 +511,7 @@ mod tests {
             Addr::unchecked("user"),
             addr.clone(),
             &ExecuteMsg::Play {},
-            &coins(5, "aconst"),
+            &coins(333, "aconst"),
         )
         .unwrap();
 
@@ -480,7 +521,7 @@ mod tests {
                 .unwrap()
                 .amount
                 .u128(),
-            0
+            99667
         );
 
         assert_eq!(
@@ -489,7 +530,7 @@ mod tests {
                 .unwrap()
                 .amount
                 .u128(),
-            1
+            111
         );
 
         assert_eq!(
@@ -498,7 +539,7 @@ mod tests {
                 .unwrap()
                 .amount
                 .u128(),
-            2
+            111
         );
 
         assert_eq!(
@@ -507,7 +548,7 @@ mod tests {
                 .unwrap()
                 .amount
                 .u128(),
-            2
+            111
         );
     }
 }

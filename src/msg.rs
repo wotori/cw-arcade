@@ -10,6 +10,7 @@ pub struct InstantiateMsg {
     pub admins: Vec<String>,
     pub max_top_score: u8,
     pub denom: String,
+    pub price_peer_game: u128,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -18,6 +19,7 @@ pub enum ExecuteMsg {
     AddTopUser { user: User },
     Leave {},
     Play {},
+    UpdatePrice { price: u128 },
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]

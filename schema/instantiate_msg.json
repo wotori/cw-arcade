@@ -6,7 +6,8 @@
     "admins",
     "arcade",
     "denom",
-    "max_top_score"
+    "max_top_score",
+    "price_peer_game"
   ],
   "properties": {
     "admins": {
@@ -24,6 +25,11 @@
     "max_top_score": {
       "type": "integer",
       "format": "uint8",
+      "minimum": 0.0
+    },
+    "price_peer_game": {
+      "type": "integer",
+      "format": "uint128",
       "minimum": 0.0
     }
   }
