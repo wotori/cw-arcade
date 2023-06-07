@@ -37,6 +37,18 @@
         }
       },
       "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "GameCounter"
+      ],
+      "properties": {
+        "GameCounter": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
     }
   ]
 }

@@ -29,3 +29,4 @@ impl PartialOrd for User {
 }
 
 pub const TOP_USERS: Item<Vec<User>> = Item::new("top");
+pub const GAME_COUNTER: Item<u32> = Item::new("game_counter");

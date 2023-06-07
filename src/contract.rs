@@ -1,7 +1,7 @@
 use crate::{
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
-    state::{User, ADMINS, ARCADE, MAX_TOP_SCORES, TOP_USERS},
+    state::{User, ADMINS, ARCADE, GAME_COUNTER, MAX_TOP_SCORES, TOP_USERS},
 };
 use cosmwasm_std::{
     to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
@@ -22,6 +22,7 @@ pub fn instantiate(
     ARCADE.save(deps.storage, &msg.arcade)?;
     MAX_TOP_SCORES.save(deps.storage, &msg.max_top_score)?;
     TOP_USERS.save(deps.storage, &Vec::<User>::new())?;
+    GAME_COUNTER.save(deps.storage, &0)?;
     Ok(Response::new())
 }
 
@@ -37,6 +38,7 @@ pub fn execute(
         AddAdmin { admins } => exec::add_members(deps, info, admins),
         AddTopUser { user } => exec::add_user(deps, info, user),
         Leave {} => exec::leave(deps, info),
+        Play {} => exec::play(deps),
     }
 }
 
@@ -113,6 +115,14 @@ mod exec {
 
         Ok(Response::new())
     }
+
+    pub fn play(deps: DepsMut) -> Result<Response, ContractError> {
+        let mut counter = GAME_COUNTER.load(deps.storage)?;
+        counter += 1;
+        GAME_COUNTER.save(deps.storage, &counter)?;
+        // TODO: add logic to handle tokens here as a quarter for play a game (0.25?)
+        Ok(Response::new())
+    }
 }
 
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
@@ -122,12 +132,13 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         Greet {} => to_binary(&query::greet()?),
         AdminsList {} => to_binary(&query::admins_list(deps)?),
         ScoreList {} => to_binary(&query::scoreboard(deps)?),
+        GameCounter {} => to_binary(&query::game_counter(deps)?),
     }
 }
 
 mod query {
     use crate::{
-        msg::{AdminsListResp, GreetResp, ScoreboardListResp},
+        msg::{AdminsListResp, GameCounterResp, GreetResp, ScoreboardListResp},
         state::TOP_USERS,
     };
 
@@ -151,17 +162,70 @@ mod query {
         let resp = AdminsListResp { admins };
         Ok(resp)
     }
+
+    pub fn game_counter(deps: Deps) -> StdResult<GameCounterResp> {
+        let counter = GAME_COUNTER.load(deps.storage)?;
+        let resp = GameCounterResp {
+            game_counter: counter,
+        };
+        Ok(resp)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
-        msg::{AdminsListResp, InstantiateMsg, QueryMsg, ScoreboardListResp},
+        msg::{
+            AdminsListResp, GameCounterResp, InstantiateMsg, QueryMsg,
+            ScoreboardListResp,
+        },
         state::User,
     };
     use cosmwasm_std::Addr;
     use cw_multi_test::{App, ContractWrapper, Executor};
+
+    #[test]
+    fn play() {
+        let mut app = App::default();
+        let code = ContractWrapper::new(execute, instantiate, query);
+        let code_id = app.store_code(Box::new(code));
+        let addr = app
+            .instantiate_contract(
+                code_id,
+                Addr::unchecked("wotori"),
+                &InstantiateMsg {
+                    arcade: "pacman".to_string(),
+                    admins: vec![],
+                    max_top_score: 10,
+                },
+                &[],
+                "Pac-Man".to_string(),
+                None,
+            )
+            .unwrap();
+
+        let resp: GameCounterResp = app
+            .wrap()
+            .query_wasm_smart(&addr, &QueryMsg::GameCounter {})
+            .unwrap();
+        assert_eq!(resp, GameCounterResp { game_counter: 0 });
+
+        let _resp = app
+            .execute_contract(
+                Addr::unchecked("wotori"),
+                addr.clone(),
+                &ExecuteMsg::Play {},
+                &[],
+            )
+            .unwrap();
+
+        let resp: GameCounterResp = app
+            .wrap()
+            .query_wasm_smart(&addr, &QueryMsg::GameCounter {})
+            .unwrap();
+        assert_eq!(resp, GameCounterResp { game_counter: 1 })
+    }
 
     #[test]
     fn instantiation() {
