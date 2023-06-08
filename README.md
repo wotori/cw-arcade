@@ -9,7 +9,7 @@ generate schema
 `cargo schema`
 
 ### deploy msg
-`{"admins": ["archway1uwew6p8k70xa2lkzeujqcw430uky49zthsvc0y", "archway10mxcxvyjnpcmnkg0sxf7r25f3wzjqdz6jp4jux", "archway1a8dq0wced6q29rppdug7yvk8ek0dsrqwe3hxcz"], "arcade": "Pac-Man", "max_top_score": 10}`
+`{"admins": ["archway1uwew6p8k70xa2lkzeujqcw430uky49zthsvc0y", "archway10mxcxvyjnpcmnkg0sxf7r25f3wzjqdz6jp4jux"], "arcade": "Pac-Man", "max_top_score": 250, "denom":"aconst", "price_peer_game": 100000000}`
 
 ### query msg
 **get top scores**
@@ -17,6 +17,9 @@ generate schema
 
 **admins**
 `archway query contract-state smart --args '{"AdminsList":{}}'`
+
+**total game played**
+`archway query contract-state smart --args '{"GameCounter":{}}'`
 ### execute
 **store user record**
 `archway tx --args '{"AddTopUser": {"user": {"address":"archway1uwew6p8k70xa2lkzeujqcw430uky49zthsvc0y", "name":"Wotori", "score":27000}}}'`

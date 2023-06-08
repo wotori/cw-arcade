@@ -3,7 +3,7 @@ use crate::{
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     state::{
         User, ADMINS, ARCADE, ARCADE_DENOM, GAME_COUNTER, MAX_TOP_SCORES,
-        PRICE_PEER_GAME, TOP_USERS,
+        TOP_USERS,
     },
 };
 use cosmwasm_std::{
@@ -27,7 +27,7 @@ pub fn instantiate(
     TOP_USERS.save(deps.storage, &Vec::<User>::new())?;
     GAME_COUNTER.save(deps.storage, &0)?;
     ARCADE_DENOM.save(deps.storage, &msg.denom)?;
-    PRICE_PEER_GAME.save(deps.storage, &msg.price_peer_game)?;
+    // PRICE_PEER_GAME.save(deps.storage, &msg.price_peer_game)?;
     Ok(Response::new())
 }
 
@@ -129,11 +129,8 @@ mod exec {
         info: MessageInfo,
         env: Env,
     ) -> Result<Response, ContractError> {
-        // increment game counter
-        let price_peer_game = PRICE_PEER_GAME.load(deps.storage)?;
-        let mut counter = GAME_COUNTER.load(deps.storage)?;
-        counter += 1;
-        GAME_COUNTER.save(deps.storage, &counter)?;
+        // let price_peer_game = PRICE_PEER_GAME.load(deps.storage)?;
+        let price_peer_game = 1;
 
         //transfer token to admins
         let denom = ARCADE_DENOM.load(deps.storage)?;
@@ -151,19 +148,24 @@ mod exec {
             });
             if left_tokens > 0 {
                 // send tokens to arcade contract
+                // TODO: 1 - gran this amount of tokens to the winner
+                // TODO: 2 - allow query available tokens to win
                 BankMsg::Send {
                     to_address: self_address.to_string(),
                     amount: coins(tokens_peer_admin, &denom),
                 };
             }
-            // println!("{}", self_address);
+
+            // increment game counter
+            let mut counter = GAME_COUNTER.load(deps.storage)?;
+            counter += 1;
+            GAME_COUNTER.save(deps.storage, &counter)?;
+
             Ok(Response::new()
                 .add_messages(messages)
                 .add_attribute("recieved_tokens", tokens.to_string()))
         } else {
             // return coins to sender
-            // TODO: 1 - gran this amount of tokens to the winner
-            // TODO: 2 - allow query available tokens to win
             BankMsg::Send {
                 to_address: info.sender.to_string(),
                 amount: coins(tokens, &denom),
@@ -175,10 +177,10 @@ mod exec {
     }
 
     pub fn update_price(
-        deps: DepsMut,
-        price: u128,
+        _deps: DepsMut,
+        _price: u128,
     ) -> Result<Response, ContractError> {
-        PRICE_PEER_GAME.save(deps.storage, &price)?;
+        // PRICE_PEER_GAME.save(deps.storage, &price)?;
         Ok(Response::new())
     }
 }
@@ -265,7 +267,7 @@ mod tests {
                     arcade: "pacman".to_string(),
                     admins: vec!["admin1".to_owned()],
                     max_top_score: 10,
-                    price_peer_game: 1,
+                    // price_peer_game: 1,
                     denom: "aconst".to_string(),
                 },
                 &[],
@@ -311,7 +313,7 @@ mod tests {
                     arcade: "pacman".to_string(),
                     admins: vec![],
                     max_top_score: 10,
-                    price_peer_game: 1,
+                    // price_peer_game: 1,
                     denom: "aconst".to_string(),
                 },
                 &[],
@@ -334,7 +336,7 @@ mod tests {
                     arcade: "Pac-Man".to_string(),
                     admins: vec!["admin1".to_owned(), "admin2".to_owned()],
                     max_top_score: 10,
-                    price_peer_game: 1,
+                    // price_peer_game: 1,
                     denom: "aconst".to_string(),
                 },
                 &[],
@@ -374,7 +376,7 @@ mod tests {
                     admins: vec!["wotori".to_string()],
                     arcade: "Pac-Man".to_string(),
                     max_top_score: max,
-                    price_peer_game: 1,
+                    // price_peer_game: 1,
                     denom: "aconst".to_string(),
                 },
                 &[],
@@ -447,7 +449,7 @@ mod tests {
                     admins: vec![],
                     arcade: "Pac-Man".to_string(),
                     max_top_score: 10,
-                    price_peer_game: 1,
+                    // price_peer_game: 1,
                     denom: "aconst".to_string(),
                 },
                 &[],
@@ -498,7 +500,7 @@ mod tests {
                     arcade: "pacman".to_string(),
                     admins: vec!["admin1".to_owned(), "admin2".to_owned()],
                     max_top_score: 10,
-                    price_peer_game: 1,
+                    // price_peer_game: 1,
                     denom: "aconst".to_string(),
                 },
                 &[],
