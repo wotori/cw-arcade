@@ -3,7 +3,7 @@ use crate::{
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     state::{
         User, ADMINS, ARCADE, ARCADE_DENOM, GAME_COUNTER, MAX_TOP_SCORES,
-        TOP_USERS, PRICE_PEER_GAME,
+        PRICE_PEER_GAME, TOP_USERS,
     },
 };
 use cosmwasm_std::{
@@ -129,12 +129,7 @@ mod exec {
         info: MessageInfo,
         env: Env,
     ) -> Result<Response, ContractError> {
-        let price_peer_game_str = PRICE_PEER_GAME.load(deps.storage)?;
-        let price_peer_game = match price_peer_game_str.parse::<u128>() {
-            Ok(n) => n,
-            Err(_) => panic!("Invalid u128 value"),
-        };
-        
+        let price_peer_game = PRICE_PEER_GAME.load(deps.storage)?;
         //transfer token to admins
         let denom = ARCADE_DENOM.load(deps.storage)?;
         let mut admins = ADMINS.load(deps.storage)?;
@@ -181,7 +176,7 @@ mod exec {
 
     pub fn update_price(
         deps: DepsMut,
-        price: String,
+        price: u128,
     ) -> Result<Response, ContractError> {
         PRICE_PEER_GAME.save(deps.storage, &price)?;
         Ok(Response::new())
@@ -192,27 +187,22 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     use QueryMsg::*;
 
     match msg {
-        Greet {} => to_binary(&query::greet()?),
         AdminsList {} => to_binary(&query::admins_list(deps)?),
         ScoreList {} => to_binary(&query::scoreboard(deps)?),
         GameCounter {} => to_binary(&query::game_counter(deps)?),
+        Price {} => to_binary(&query::get_price(deps)?),
     }
 }
 
 mod query {
     use crate::{
-        msg::{AdminsListResp, GameCounterResp, GreetResp, ScoreboardListResp},
+        msg::{
+            AdminsListResp, GameCounterResp, GamePriceResp, ScoreboardListResp,
+        },
         state::TOP_USERS,
     };
 
     use super::*;
-
-    pub fn greet() -> StdResult<GreetResp> {
-        let resp = GreetResp {
-            message: "Hello, world!".to_owned(),
-        };
-        Ok(resp)
-    }
 
     pub fn scoreboard(deps: Deps) -> StdResult<ScoreboardListResp> {
         let scoreboard = TOP_USERS.load(deps.storage)?;
@@ -231,6 +221,11 @@ mod query {
         let resp = GameCounterResp {
             game_counter: counter,
         };
+        Ok(resp)
+    }
+    pub fn get_price(deps: Deps) -> StdResult<GamePriceResp> {
+        let price = PRICE_PEER_GAME.load(deps.storage)?;
+        let resp = GamePriceResp { price };
         Ok(resp)
     }
 }
@@ -270,7 +265,7 @@ mod tests {
                     arcade: "pacman".to_string(),
                     admins: vec!["admin1".to_owned()],
                     max_top_score: 10,
-                    price_peer_game: 1.to_string(),
+                    price_peer_game: 1,
                     denom: "aconst".to_string(),
                 },
                 &[],
@@ -316,7 +311,7 @@ mod tests {
                     arcade: "pacman".to_string(),
                     admins: vec![],
                     max_top_score: 10,
-                    price_peer_game: 1.to_string(),
+                    price_peer_game: 1,
                     denom: "aconst".to_string(),
                 },
                 &[],
@@ -339,7 +334,7 @@ mod tests {
                     arcade: "Pac-Man".to_string(),
                     admins: vec!["admin1".to_owned(), "admin2".to_owned()],
                     max_top_score: 10,
-                    price_peer_game: 1.to_string(),
+                    price_peer_game: 1,
                     denom: "aconst".to_string(),
                 },
                 &[],
@@ -379,7 +374,7 @@ mod tests {
                     admins: vec!["wotori".to_string()],
                     arcade: "Pac-Man".to_string(),
                     max_top_score: max,
-                    price_peer_game: 1.to_string(),
+                    price_peer_game: 1,
                     denom: "aconst".to_string(),
                 },
                 &[],
@@ -452,7 +447,7 @@ mod tests {
                     admins: vec![],
                     arcade: "Pac-Man".to_string(),
                     max_top_score: 10,
-                    price_peer_game: 1.to_string(),
+                    price_peer_game: 1,
                     denom: "aconst".to_string(),
                 },
                 &[],
@@ -503,7 +498,7 @@ mod tests {
                     arcade: "pacman".to_string(),
                     admins: vec!["admin1".to_owned(), "admin2".to_owned()],
                     max_top_score: 10,
-                    price_peer_game: 1.to_string(),
+                    price_peer_game: 1,
                     denom: "aconst".to_string(),
                 },
                 &[],

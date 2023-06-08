@@ -10,7 +10,7 @@ pub struct InstantiateMsg {
     pub admins: Vec<String>,
     pub max_top_score: u8,
     pub denom: String,
-    pub price_peer_game: String,
+    pub price_peer_game: u128,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -19,20 +19,15 @@ pub enum ExecuteMsg {
     AddTopUser { user: User },
     Leave {},
     Play {},
-    UpdatePrice { price: String },
+    UpdatePrice { price: u128 },
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
 pub enum QueryMsg {
-    Greet {},
     AdminsList {},
     ScoreList {},
     GameCounter {},
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-pub struct GreetResp {
-    pub message: String,
+    Price {},
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -53,4 +48,9 @@ pub struct ScoreboardListResp {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
 pub struct GameCounterResp {
     pub game_counter: u32,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
+pub struct GamePriceResp {
+    pub price: u128,
 }

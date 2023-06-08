@@ -82,7 +82,9 @@
           ],
           "properties": {
             "price": {
-              "type": "string"
+              "type": "integer",
+              "format": "uint128",
+              "minimum": 0.0
             }
           }
         }
