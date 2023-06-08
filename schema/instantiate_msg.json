@@ -28,9 +28,7 @@
       "minimum": 0.0
     },
     "price_peer_game": {
-      "type": "integer",
-      "format": "uint128",
-      "minimum": 0.0
+      "type": "string"
     }
   }
 }

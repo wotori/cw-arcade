@@ -9,7 +9,7 @@ generate schema
 `cargo schema`
 
 ### deploy msg
-`{"admins": ["archway1uwew6p8k70xa2lkzeujqcw430uky49zthsvc0y", "archway10mxcxvyjnpcmnkg0sxf7r25f3wzjqdz6jp4jux"], "arcade": "Pac-Man", "max_top_score": 250, "denom":"aconst", "price_peer_game": 100000000}`
+`{"admins": ["archway10mxcxvyjnpcmnkg0sxf7r25f3wzjqdz6jp4jux"], "arcade": "Pac-Man", "max_top_score": 250, "denom":"aconst", "price_peer_game": "250000000000000000"}`
 
 ### query msg
 **get top scores**

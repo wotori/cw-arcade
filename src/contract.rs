@@ -3,7 +3,7 @@ use crate::{
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     state::{
         User, ADMINS, ARCADE, ARCADE_DENOM, GAME_COUNTER, MAX_TOP_SCORES,
-        TOP_USERS,
+        TOP_USERS, PRICE_PEER_GAME,
     },
 };
 use cosmwasm_std::{
@@ -27,7 +27,7 @@ pub fn instantiate(
     TOP_USERS.save(deps.storage, &Vec::<User>::new())?;
     GAME_COUNTER.save(deps.storage, &0)?;
     ARCADE_DENOM.save(deps.storage, &msg.denom)?;
-    // PRICE_PEER_GAME.save(deps.storage, &msg.price_peer_game)?;
+    PRICE_PEER_GAME.save(deps.storage, &msg.price_peer_game)?;
     Ok(Response::new())
 }
 
@@ -129,9 +129,12 @@ mod exec {
         info: MessageInfo,
         env: Env,
     ) -> Result<Response, ContractError> {
-        // let price_peer_game = PRICE_PEER_GAME.load(deps.storage)?;
-        let price_peer_game = 1;
-
+        let price_peer_game_str = PRICE_PEER_GAME.load(deps.storage)?;
+        let price_peer_game = match price_peer_game_str.parse::<u128>() {
+            Ok(n) => n,
+            Err(_) => panic!("Invalid u128 value"),
+        };
+        
         //transfer token to admins
         let denom = ARCADE_DENOM.load(deps.storage)?;
         let mut admins = ADMINS.load(deps.storage)?;
@@ -177,10 +180,10 @@ mod exec {
     }
 
     pub fn update_price(
-        _deps: DepsMut,
-        _price: u128,
+        deps: DepsMut,
+        price: String,
     ) -> Result<Response, ContractError> {
-        // PRICE_PEER_GAME.save(deps.storage, &price)?;
+        PRICE_PEER_GAME.save(deps.storage, &price)?;
         Ok(Response::new())
     }
 }
@@ -267,7 +270,7 @@ mod tests {
                     arcade: "pacman".to_string(),
                     admins: vec!["admin1".to_owned()],
                     max_top_score: 10,
-                    // price_peer_game: 1,
+                    price_peer_game: 1.to_string(),
                     denom: "aconst".to_string(),
                 },
                 &[],
@@ -313,7 +316,7 @@ mod tests {
                     arcade: "pacman".to_string(),
                     admins: vec![],
                     max_top_score: 10,
-                    // price_peer_game: 1,
+                    price_peer_game: 1.to_string(),
                     denom: "aconst".to_string(),
                 },
                 &[],
@@ -336,7 +339,7 @@ mod tests {
                     arcade: "Pac-Man".to_string(),
                     admins: vec!["admin1".to_owned(), "admin2".to_owned()],
                     max_top_score: 10,
-                    // price_peer_game: 1,
+                    price_peer_game: 1.to_string(),
                     denom: "aconst".to_string(),
                 },
                 &[],
@@ -376,7 +379,7 @@ mod tests {
                     admins: vec!["wotori".to_string()],
                     arcade: "Pac-Man".to_string(),
                     max_top_score: max,
-                    // price_peer_game: 1,
+                    price_peer_game: 1.to_string(),
                     denom: "aconst".to_string(),
                 },
                 &[],
@@ -449,7 +452,7 @@ mod tests {
                     admins: vec![],
                     arcade: "Pac-Man".to_string(),
                     max_top_score: 10,
-                    // price_peer_game: 1,
+                    price_peer_game: 1.to_string(),
                     denom: "aconst".to_string(),
                 },
                 &[],
@@ -500,7 +503,7 @@ mod tests {
                     arcade: "pacman".to_string(),
                     admins: vec!["admin1".to_owned(), "admin2".to_owned()],
                     max_top_score: 10,
-                    // price_peer_game: 1,
+                    price_peer_game: 1.to_string(),
                     denom: "aconst".to_string(),
                 },
                 &[],
