@@ -64,7 +64,6 @@ mod exec {
         info: MessageInfo,
         user: User,
     ) -> Result<Response, ContractError> {
-        println!("sender: {}", info.sender);
         let admins = ADMINS.load(deps.storage)?;
         if admins.contains(&info.sender) {
             let max = MAX_TOP_SCORES.load(deps.storage)?;
@@ -77,6 +76,8 @@ mod exec {
                     // > because the lower the value, the greater it is
                     heap.pop();
                     heap.push(user);
+
+                    // TODO: add logic for coins transaction for the winner
                 }
             }
             let vec = heap.into_vec();
@@ -183,7 +184,7 @@ mod exec {
     }
 }
 
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     use QueryMsg::*;
 
     match msg {
@@ -191,16 +192,19 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         ScoreList {} => to_binary(&query::scoreboard(deps)?),
         GameCounter {} => to_binary(&query::game_counter(deps)?),
         Price {} => to_binary(&query::get_price(deps)?),
+        PrizePool {} => to_binary(&query::prize_pool(deps, env)?),
     }
 }
 
 mod query {
+    use crate::msg::PrizePoolResp;
     use crate::{
         msg::{
             AdminsListResp, GameCounterResp, GamePriceResp, ScoreboardListResp,
         },
         state::TOP_USERS,
     };
+    use cosmwasm_std::{BalanceResponse, BankQuery};
 
     use super::*;
 
@@ -223,10 +227,23 @@ mod query {
         };
         Ok(resp)
     }
+
     pub fn get_price(deps: Deps) -> StdResult<GamePriceResp> {
         let price = PRICE_PEER_GAME.load(deps.storage)?;
         let resp = GamePriceResp { price };
         Ok(resp)
+    }
+
+    pub fn prize_pool(deps: Deps, env: Env) -> StdResult<PrizePoolResp> {
+        let denom = ARCADE_DENOM.load(deps.storage)?;
+        let address = env.contract.address.to_string();
+        let balance_query = BankQuery::Balance { denom, address };
+        let balance_response: BalanceResponse =
+            deps.querier.query(&balance_query.into())?;
+        let balance_u128 = balance_response.amount.amount.u128();
+        Ok(PrizePoolResp {
+            prize_pool: balance_u128,
+        })
     }
 }
 
@@ -235,8 +252,8 @@ mod tests {
     use super::*;
     use crate::{
         msg::{
-            AdminsListResp, GameCounterResp, InstantiateMsg, QueryMsg,
-            ScoreboardListResp,
+            AdminsListResp, GameCounterResp, InstantiateMsg, PrizePoolResp,
+            QueryMsg, ScoreboardListResp,
         },
         state::User,
     };
@@ -353,7 +370,7 @@ mod tests {
             AdminsListResp {
                 admins: vec![
                     Addr::unchecked("admin1"),
-                    Addr::unchecked("admin2")
+                    Addr::unchecked("admin2"),
                 ],
             }
         );
@@ -424,7 +441,7 @@ mod tests {
                 scores: vec![User {
                     name: "ASHTON".to_string(),
                     score: std::cmp::Reverse(300),
-                    address: Addr::unchecked("archway#######")
+                    address: Addr::unchecked("archway#######"),
                 }]
             }
         );
@@ -474,6 +491,7 @@ mod tests {
             err.downcast().unwrap()
         );
     }
+
     #[test]
     fn play_with_pay() {
         let mut app = App::new(|router, _, storage| {
@@ -514,6 +532,12 @@ mod tests {
             &coins(333, "aconst"),
         )
         .unwrap();
+
+        let resp: PrizePoolResp = app
+            .wrap()
+            .query_wasm_smart(&addr, &QueryMsg::PrizePool {})
+            .unwrap();
+        assert_eq!(resp, PrizePoolResp { prize_pool: 111 });
 
         assert_eq!(
             app.wrap()

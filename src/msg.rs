@@ -28,6 +28,7 @@ pub enum QueryMsg {
     ScoreList {},
     GameCounter {},
     Price {},
+    PrizePool {}
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -53,4 +54,9 @@ pub struct GameCounterResp {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
 pub struct GamePriceResp {
     pub price: u128,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
+pub struct PrizePoolResp {
+    pub prize_pool: u128,
 }
