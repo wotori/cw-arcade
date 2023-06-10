@@ -69,4 +69,7 @@ raw-query:
 # Demo
 You can explore the functionalities of this cw-arcade smart contract and delight in playing [Pac-Man](https://wotori.github.io/arcade-pacman/).
 
-![alet pac-man demo](pac-man-demo.png)
+<!-- [![alet pac-man demo](pac-man-demo.png)](https://wotori.github.io/arcade-pacman/) -->
+<a href="https://wotori.github.io/arcade-pacman/">
+<img src="pac-man-demo.png"  />
+</a>
