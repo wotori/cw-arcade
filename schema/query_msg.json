@@ -49,6 +49,30 @@
         }
       },
       "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "PrizePool"
+      ],
+      "properties": {
+        "PrizePool": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "TotalDistributed"
+      ],
+      "properties": {
+        "TotalDistributed": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
     }
   ]
 }
