@@ -32,3 +32,4 @@ pub const TOP_USERS: Item<Vec<User>> = Item::new("top");
 pub const GAME_COUNTER: Item<u32> = Item::new("game_counter");
 pub const ARCADE_DENOM: Item<String> = Item::new("denom");
 pub const PRICE_PEER_GAME: Item<u128> = Item::new("price");
+pub const TOTAL_PRICE_DISTRIBUTED: Item<u128> = Item::new("total");

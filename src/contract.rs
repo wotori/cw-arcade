@@ -3,7 +3,7 @@ use crate::{
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     state::{
         User, ADMINS, ARCADE, ARCADE_DENOM, GAME_COUNTER, MAX_TOP_SCORES,
-        PRICE_PEER_GAME, TOP_USERS,
+        PRICE_PEER_GAME, TOP_USERS, TOTAL_PRICE_DISTRIBUTED,
     },
 };
 use cosmwasm_std::{
@@ -28,6 +28,7 @@ pub fn instantiate(
     GAME_COUNTER.save(deps.storage, &0)?;
     ARCADE_DENOM.save(deps.storage, &msg.denom)?;
     PRICE_PEER_GAME.save(deps.storage, &msg.price_peer_game)?;
+    TOTAL_PRICE_DISTRIBUTED.save(deps.storage, &0)?;
     Ok(Response::new())
 }
 
@@ -41,7 +42,7 @@ pub fn execute(
 
     match msg {
         AddAdmin { admins } => exec::add_members(deps, info, admins),
-        AddTopUser { user } => exec::add_user(deps, info, user),
+        AddTopUser { user } => exec::add_user(deps, info, user, env),
         Leave {} => exec::leave(deps, info),
         Play {} => exec::play(deps, info, env),
         UpdatePrice { price } => exec::update_price(deps, price),
@@ -57,12 +58,14 @@ mod exec {
     use crate::{
         error::ContractError,
         state::{User, TOP_USERS},
+        utils::{query_arcade_balance, user_is_top},
     };
 
     pub fn add_user(
         deps: DepsMut,
         info: MessageInfo,
         user: User,
+        env: Env,
     ) -> Result<Response, ContractError> {
         let admins = ADMINS.load(deps.storage)?;
         if admins.contains(&info.sender) {
@@ -73,13 +76,28 @@ mod exec {
                 heap.push(user);
             } else if let Some(lowest_score_user) = heap.peek() {
                 if lowest_score_user.score > user.score {
-                    // > because the lower the value, the greater it is
+                    // check if user top score for send prize pool to his account
+                    if user_is_top(&heap, &user) {
+                        // send all accumulated coins to the winner.
+                        let denom = ARCADE_DENOM.load(deps.storage)?;
+                        let balance = query_arcade_balance(&deps, env)?;
+                        BankMsg::Send {
+                            to_address: user.address.to_string(),
+                            amount: coins(balance, &denom),
+                        };
+                        let distributed =
+                            TOTAL_PRICE_DISTRIBUTED.load(deps.storage);
+                        let total_distributed = distributed.unwrap() + balance;
+                        TOTAL_PRICE_DISTRIBUTED
+                            .save(deps.storage, &total_distributed)?;
+                    }
+
+                    // adding user to top score list // > used here  because the lower the value, the greater it is
                     heap.pop();
                     heap.push(user);
-
-                    // TODO: add logic for coins transaction for the winner
                 }
             }
+
             let vec = heap.into_vec();
             TOP_USERS.save(deps.storage, &vec)?;
             Ok(Response::new())
@@ -147,8 +165,6 @@ mod exec {
             });
             if left_tokens > 0 {
                 // send tokens to arcade contract
-                // TODO: 1 - gran this amount of tokens to the winner
-                // TODO: 2 - allow query available tokens to win
                 BankMsg::Send {
                     to_address: self_address.to_string(),
                     amount: coins(tokens_peer_admin, &denom),
@@ -193,11 +209,12 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         GameCounter {} => to_binary(&query::game_counter(deps)?),
         Price {} => to_binary(&query::get_price(deps)?),
         PrizePool {} => to_binary(&query::prize_pool(deps, env)?),
+        TotalDistributed {} => to_binary(&query::total_distributed(deps)?),
     }
 }
 
 mod query {
-    use crate::msg::PrizePoolResp;
+    use crate::msg::{PrizePoolResp, TotalDistributionResp};
     use crate::{
         msg::{
             AdminsListResp, GameCounterResp, GamePriceResp, ScoreboardListResp,
@@ -235,6 +252,8 @@ mod query {
     }
 
     pub fn prize_pool(deps: Deps, env: Env) -> StdResult<PrizePoolResp> {
+        // returns available amount of coins that will be disctibutet to the winner thet hist the scoreboard
+        // TODO: replace with query_arcade_balance function (code duplicate)
         let denom = ARCADE_DENOM.load(deps.storage)?;
         let address = env.contract.address.to_string();
         let balance_query = BankQuery::Balance { denom, address };
@@ -244,6 +263,10 @@ mod query {
         Ok(PrizePoolResp {
             prize_pool: balance_u128,
         })
+    }
+    pub fn total_distributed(deps: Deps) -> StdResult<TotalDistributionResp> {
+        let total_distributed = TOTAL_PRICE_DISTRIBUTED.load(deps.storage)?;
+        Ok(TotalDistributionResp { total_distributed })
     }
 }
 

@@ -28,7 +28,8 @@ pub enum QueryMsg {
     ScoreList {},
     GameCounter {},
     Price {},
-    PrizePool {}
+    PrizePool {},
+    TotalDistributed {},
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -59,4 +60,10 @@ pub struct GamePriceResp {
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
 pub struct PrizePoolResp {
     pub prize_pool: u128,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
+pub struct TotalDistributionResp {
+    // returns total amouns of token that was distributed across gamers
+    pub total_distributed: u128,
 }
