@@ -279,6 +279,7 @@ mod tests {
     };
     use cosmwasm_std::{coins, Addr};
     use cw_multi_test::{App, ContractWrapper, Executor};
+    use crate::msg::GamePriceResp;
 
     #[test]
     fn play() {
@@ -539,7 +540,7 @@ mod tests {
                     arcade: "pacman".to_string(),
                     admins: vec!["admin1".to_owned(), "admin2".to_owned()],
                     max_top_score: 1,
-                    price_peer_game: 1,
+                    price_peer_game: 123,
                     denom: "aconst".to_string(),
                 },
                 &[],
@@ -561,6 +562,18 @@ mod tests {
             .query_wasm_smart(&addr, &QueryMsg::PrizePool {})
             .unwrap();
         assert_eq!(resp, PrizePoolResp { prize_pool: 111 });
+
+        let price: GamePriceResp = app
+            .wrap()
+            .query_wasm_smart(&addr, &QueryMsg::Price {})
+            .unwrap();
+        assert_eq!(price, GamePriceResp { price: 123 });
+
+        let price: GameCounterResp = app
+            .wrap()
+            .query_wasm_smart(&addr, &QueryMsg::GameCounter {})
+            .unwrap();
+        assert_eq!(price, GameCounterResp { game_counter: 1 });
 
         assert_eq!(
             app.wrap()
