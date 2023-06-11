@@ -58,17 +58,19 @@ mod exec {
     use crate::{
         error::ContractError,
         state::{User, TOP_USERS},
-        utils::{query_arcade_balance, user_is_top},
+        utils::{user_is_top},
     };
+    use crate::utils::send_coins;
 
     pub fn add_user(
-        deps: DepsMut,
+        mut deps: DepsMut,
         info: MessageInfo,
         user: User,
         env: Env,
     ) -> Result<Response, ContractError> {
         let admins = ADMINS.load(deps.storage)?;
         if admins.contains(&info.sender) {
+            let mut resp = Response::new();
             let max = MAX_TOP_SCORES.load(deps.storage)?;
             let cur_top_users = TOP_USERS.load(deps.storage)?;
             let mut heap = BinaryHeap::from(cur_top_users);
@@ -79,20 +81,10 @@ mod exec {
                     // check if user top score for send prize pool to his account
                     if user_is_top(&heap, &user) {
                         // send all accumulated coins to the winner.
-                        let denom = ARCADE_DENOM.load(deps.storage)?;
-                        let balance = query_arcade_balance(&deps, env)?;
-                        BankMsg::Send {
-                            to_address: user.address.to_string(),
-                            amount: coins(balance, &denom),
-                        };
-                        let distributed =
-                            TOTAL_PRICE_DISTRIBUTED.load(deps.storage);
-                        let total_distributed = distributed.unwrap() + balance;
-                        TOTAL_PRICE_DISTRIBUTED
-                            .save(deps.storage, &total_distributed)?;
+                        resp = send_coins(&mut deps, &user, env)?;
                     }
 
-                    // adding user to top score list // > used here  because the lower the value, the greater it is
+                    // adding user to top score list // > used here because the lower the value, the greater it is
                     heap.pop();
                     heap.push(user);
                 }
@@ -100,7 +92,7 @@ mod exec {
 
             let vec = heap.into_vec();
             TOP_USERS.save(deps.storage, &vec)?;
-            Ok(Response::new())
+            Ok(resp)
         } else {
             Err(ContractError::Unauthorized {
                 sender: (info.sender),
@@ -160,11 +152,13 @@ mod exec {
             let tokens_peer_admin = tokens / (admins.len() as u128);
             let left_tokens = tokens % (admins.len() as u128);
             let messages = admins.into_iter().map(|admin| BankMsg::Send {
+                // this send is works as expected and testd
                 to_address: admin.to_string(),
                 amount: coins(tokens_peer_admin, &denom),
             });
             if left_tokens > 0 {
                 // send tokens to arcade contract
+                // TODO: check if it really works
                 BankMsg::Send {
                     to_address: self_address.to_string(),
                     amount: coins(tokens_peer_admin, &denom),
@@ -181,6 +175,7 @@ mod exec {
                 .add_attribute("recieved_tokens", tokens.to_string()))
         } else {
             // return coins to sender
+            // TODO: need to be tested (not sure if it works) // potentially it is not even need to be here
             BankMsg::Send {
                 to_address: info.sender.to_string(),
                 amount: coins(tokens, &denom),
@@ -252,7 +247,7 @@ mod query {
     }
 
     pub fn prize_pool(deps: Deps, env: Env) -> StdResult<PrizePoolResp> {
-        // returns available amount of coins that will be disctibutet to the winner thet hist the scoreboard
+        // returns available amount of coins that will be distributed to the winner that hist the scoreboard
         // TODO: replace with query_arcade_balance function (code duplicate)
         let denom = ARCADE_DENOM.load(deps.storage)?;
         let address = env.contract.address.to_string();
@@ -264,6 +259,7 @@ mod query {
             prize_pool: balance_u128,
         })
     }
+
     pub fn total_distributed(deps: Deps) -> StdResult<TotalDistributionResp> {
         let total_distributed = TOTAL_PRICE_DISTRIBUTED.load(deps.storage)?;
         Ok(TotalDistributionResp { total_distributed })
@@ -272,6 +268,7 @@ mod query {
 
 #[cfg(test)]
 mod tests {
+    use std::cmp::Reverse;
     use super::*;
     use crate::{
         msg::{
@@ -399,9 +396,26 @@ mod tests {
         );
     }
 
+    fn test_user(name: &str, score: u16, addr: String) -> User {
+        User {
+            name: name.to_string(),
+            address: Addr::unchecked(addr),
+            score: Reverse(score),
+        }
+    }
+
     #[test]
     fn write_score() {
-        let mut app = App::default();
+        let mut app = App::new(|router, _, storage| {
+            router
+                .bank
+                .init_balance(
+                    storage,
+                    &Addr::unchecked("arcade"),
+                    coins(100000, "aconst"),
+                )
+                .unwrap()
+        });
 
         let code = ContractWrapper::new(execute, instantiate, query);
         let code_id = app.store_code(Box::new(code));
@@ -423,32 +437,22 @@ mod tests {
             )
             .unwrap();
 
+        let user1 = test_user("user1", 299, "test".to_string());
         let _resp = app
             .execute_contract(
                 Addr::unchecked("wotori"),
                 addr.clone(),
-                &ExecuteMsg::AddTopUser {
-                    user: User {
-                        name: "ASHTON".to_string(),
-                        address: Addr::unchecked("archway#######"),
-                        score: std::cmp::Reverse(300),
-                    },
-                },
+                &ExecuteMsg::AddTopUser { user: user1.clone() },
                 &[],
             )
             .unwrap();
 
+        let user2 = test_user("user2", 300, "test".to_string());
         let _resp = app
             .execute_contract(
                 Addr::unchecked("wotori"),
                 addr.clone(),
-                &ExecuteMsg::AddTopUser {
-                    user: User {
-                        name: "WOTORI".to_string(),
-                        address: Addr::unchecked("archway#######"),
-                        score: std::cmp::Reverse(299),
-                    },
-                },
+                &ExecuteMsg::AddTopUser { user: user2.clone() },
                 &[],
             )
             .unwrap();
@@ -461,11 +465,7 @@ mod tests {
         assert_eq!(
             resp,
             ScoreboardListResp {
-                scores: vec![User {
-                    name: "ASHTON".to_string(),
-                    score: std::cmp::Reverse(300),
-                    address: Addr::unchecked("archway#######"),
-                }]
+                scores: vec![user2]
             }
         );
 
@@ -522,7 +522,7 @@ mod tests {
                 .bank
                 .init_balance(
                     storage,
-                    &Addr::unchecked("user"),
+                    &Addr::unchecked("user1"),
                     coins(100000, "aconst"),
                 )
                 .unwrap()
@@ -538,7 +538,7 @@ mod tests {
                 &InstantiateMsg {
                     arcade: "pacman".to_string(),
                     admins: vec!["admin1".to_owned(), "admin2".to_owned()],
-                    max_top_score: 10,
+                    max_top_score: 1,
                     price_peer_game: 1,
                     denom: "aconst".to_string(),
                 },
@@ -549,12 +549,12 @@ mod tests {
             .unwrap();
 
         app.execute_contract(
-            Addr::unchecked("user"),
+            Addr::unchecked("user1"),
             addr.clone(),
             &ExecuteMsg::Play {},
             &coins(333, "aconst"),
         )
-        .unwrap();
+            .unwrap();
 
         let resp: PrizePoolResp = app
             .wrap()
@@ -564,7 +564,7 @@ mod tests {
 
         assert_eq!(
             app.wrap()
-                .query_balance("user", "aconst")
+                .query_balance("user1", "aconst")
                 .unwrap()
                 .amount
                 .u128(),
@@ -597,5 +597,57 @@ mod tests {
                 .u128(),
             111
         );
+
+        let arcade_balance = app.wrap()
+            .query_balance(addr.clone(), "aconst")
+            .unwrap()
+            .amount
+            .u128();
+
+        assert_eq!(arcade_balance, 111);
+
+        let user2_balance_1 = app.wrap()
+            .query_balance("test2", "aconst")
+            .unwrap()
+            .amount
+            .u128();
+
+        assert_eq!(user2_balance_1, 0);
+
+        let user1 = test_user("user1", 299, "test1".to_string());
+        let _resp = app
+            .execute_contract(
+                Addr::unchecked("admin1"),
+                addr.clone(),
+                &ExecuteMsg::AddTopUser { user: user1.clone() },
+                &[],
+            )
+            .unwrap();
+
+        let user2 = test_user("user2", 300, "test2".to_string());
+        let _resp = app
+            .execute_contract(
+                Addr::unchecked("admin1"),
+                addr.clone(),
+                &ExecuteMsg::AddTopUser { user: user2.clone() },
+                &[],
+            )
+            .unwrap();
+
+        let arcade_balance_2 = app.wrap()
+            .query_balance(addr.clone(), "aconst")
+            .unwrap()
+            .amount
+            .u128();
+
+        let user2_balance_2 = app.wrap()
+            .query_balance("test2", "aconst")
+            .unwrap()
+            .amount
+            .u128();
+
+        // arcade balance should be empty as the whole balance should be sent to the winner user
+        assert_eq!(arcade_balance_2, 0);
+        assert_eq!(user2_balance_2, 111)
     }
 }

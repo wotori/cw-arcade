@@ -10,4 +10,6 @@ pub enum ContractError {
     Unauthorized { sender: Addr },
     #[error("Payment error: {0}")]
     Payment(#[from] PaymentError),
+    #[error("arcade balance has no fundsÏ")]
+    NoFunds,
 }
