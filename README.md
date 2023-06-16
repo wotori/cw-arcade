@@ -20,33 +20,33 @@ Investigate all potential queries and execute commands within the ./schema folde
 
 ##### execute
 
-- Add top users with their address, nickname, and score
+Add top users with their address, nickname, and score
+  
   **store user record**
+  
   `archway tx --args '{"AddTopUser": {"user": {"address":"archway1uwew6p8k70xa2lkzeujqcw430uky49zthsvc0y", "name":"Wotori", "score":1}}}'`
+
   **store user record raw**
+  
   `archwayd tx wasm execute --chain-id constantine-3 --gas auto --gas-prices $(archwayd q rewards estimate-fees 1 --node 'https://rpc.constantine.archway.tech:443' --output json | jq -r '.gas_unit_price | (.amount + .denom)') --gas-adjustment 1.4 archway1tykvjvpvfqr5g7f8uqqg5du8tp0h99jcgvf05xumtgcq3vf5vajsvp9v2e  '{"AddTopUser": {"user": {"address":"archway1uwew6p8k70xa2lkzeujqcw430uky49zthsvc0y", "name":"Wotori", "score":27000}}}' --from pacman --node https://rpc.constantine.archway.tech:443 -y`
 
 ##### query
 
-- query current scoreboard state
+query current scoreboard state
   `archway query contract-state smart --args '{"ScoreList":{}}'`
 
 ### 2. Play
 
 This execute function is initiated by players on the dApp side. It receives payment from the user (akin to inserting a
 quarter in old-school gaming machines). This sum of money is divided between the admins (for user store execution) and
-the smart contract itself, which accumulates prize coins for future distribution to the top-ranking winner.
+the smart contract itself, which accumulates prize coins for future distribution to the top-ranking winner. Allows users to participate in the game (for dApp confirmation)
 
 ##### execute
-```cmd
-archwayd tx wasm execute --chain-id constantine-3 --gas auto --gas-prices $(archwayd q rewards estimate-fees 1 --node 'https://rpc.constantine.archway.tech:443' --output json | jq -r '.gas_unit_price | (.amount + .denom)') --gas-adjustment 1.4 archway12w38trruqfrkzsdmq9nlcnn9k5w3rmdlsqne5u89kwx69k8tn3ss2u9t0u '{"Play": {}}' --from pacman --amount 250000000000000000aconst --node https://rpc.constantine.archway.tech:443 -y
-```
 
-- Allow users to participate in the game (for dApp confirmation)
+`archwayd tx wasm execute --chain-id constantine-3 --gas auto --gas-prices $(archwayd q rewards estimate-fees 1 --node 'https://rpc.constantine.archway.tech:443' --output json | jq -r '.gas_unit_price | (.amount + .denom)') --gas-adjustment 1.4 archway12w38trruqfrkzsdmq9nlcnn9k5w3rmdlsqne5u89kwx69k8tn3ss2u9t0u '{"Play": {}}' --from pacman --amount 250000000000000000aconst --node https://rpc.constantine.archway.tech:443 -y`
 
 ### 3. Game Counter
-
-- Increment and track the total number of games played
+Increment and track the total number of games played
 
 archway cli query:
 `archway query contract-state smart --args '{"GameCounter":{}}'`
@@ -56,18 +56,21 @@ raw-query:
 
 ### 4. Price Management
 
-- Update the price to participate in the game
+Update the price to participate in the game
+
   `command arguments in schema folder`
 
 ### 5. Prize Pool Management
 
 - Add funds to the prize pool (just send coins to the smart contract address)
 - Distribute prizes to winners (top 1 recieve all collected const)
+  
   `archway query contract-state smart --args '{"PrizePool":{}}'`
 
 ### 6. Total Distributed Prizes
 
 - Update and track the total amount of prizes distributed
+  
   `archway query contract-state smart --args '{"TotalDistributed":{}}'`
 
 ### 7. Admins List Management
