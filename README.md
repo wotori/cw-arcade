@@ -3,10 +3,12 @@
 A Cosmos-based (CosmWasm) smart contract for building a decentralized arcade where users can play arcades like Tetris or
 Pacman by paying a quarter, just like in old-school gaming arcade machines. Scores are stored securely on the
 blockchain. You can choose the maximum amount of score records in the scoreboard when instantiating the smart contract
-along with the price for each game.
+along with the price for each game. 
 
 <!-- ![alt cw-arcade](cw-arcade.jpg) -->
 <img src="cw-arcade.jpg" width="500" />
+
+[video demo](https://www.youtube.com/watch?v=q_12D2GZIxc&t=9s)
 
 ## Smart Contract Features
 
